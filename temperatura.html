@@ -1,109 +1,138 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Distribución de Temperatura</title>
-  <link rel="stylesheet" href="./assets/style.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Distribución de Temperatura</title>
+    <link rel="stylesheet" href="./assets/style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
+
 <body>
-  <header>
-    <img src="./assets/utez.png" alt="Logo UTEZ" class="logo izquierda" />
-    <h1>Distribución de Temperatura en una Barra</h1>
-    <img src="./assets/datid.png" alt="Logo DATID" class="logo derecha" />
-  </header>
+    <header>
+        <img src="./assets/utez.png" alt="Logo UTEZ" class="logo izquierda" />
+        <h1>Distribución de Temperatura en una Barra</h1>
+        <img src="./assets/datid.png" alt="Logo DATID" class="logo derecha" />
+    </header>
 
-  <main>
-    <section class="formulario">
-      <label>Número de Puntos (N):</label>
-      <input type="number" id="numPuntos" value="10" />
+    <main>
+        <section class="formulario">
+            <label>Número de Puntos (N):</label>
+            <input type="number" id="numPuntos" value="10" />
 
-      <label>Fuente de Calor (Q):</label>
-      <input type="number" id="fuenteCalor" value="-10" />
+            <label>Fuente de Calor (Q):</label>
+            <input type="number" id="fuenteCalor" value="-10" />
 
-      <label>Longitud de la Barra (L):</label>
-      <input type="number" id="longitudBarra" value="1" step="0.1" />
+            <label>Longitud de la Barra (L):</label>
+            <input type="number" id="longitudBarra" value="1" step="0.1" />
 
-      <button onclick="calcular()">Calcular</button>
-      <button onclick="exportarExcel()">Exportar Excel</button>
-    </section>
+            <button onclick="calcular()">Calcular</button>
+            <button onclick="exportarExcel()">Exportar Excel</button>
+        </section>
 
-    <section class="tabla">
-      <h2>Resultados</h2>
-      <table id="resultado">
-        <thead>
-          <tr><th>Posición (x)</th><th>Temperatura (T)</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-  </main>
+        <section class="tabla">
+            <h2>Resultados</h2>
+            <table id="resultado">
+                <thead>
+                    <tr>
+                        <th>Posición (x)</th>
+                        <th>Temperatura (T)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+    </main>
 
-  <script>
-    let resultados = [];
+    <script>
+        let resultados = [];
 
-    function calcular() {
-      const N = parseInt(document.getElementById("numPuntos").value);
-      const Q = parseFloat(document.getElementById("fuenteCalor").value);
-      const L = parseFloat(document.getElementById("longitudBarra").value);
-      const dx = L / (N - 1);
+        function calcular() {
+            const N = parseInt(document.getElementById("numPuntos").value);  // Número de puntos
+            const Q = parseFloat(document.getElementById("fuenteCalor").value);  // Fuente de calor
+            const L = parseFloat(document.getElementById("longitudBarra").value);  // Longitud de la barra
+            const dx = L / (N - 1);  // Espaciado entre los puntos
 
-      let A = Array.from({ length: N }, () => Array(N).fill(0));
-      let b = Array(N).fill(-Q * dx * dx);
+            // Matriz A de coeficientes y vector b con los términos de la ecuación
+            let A = Array.from({ length: N }, () => Array(N).fill(0));  // Matriz A de tamaño N x N
+            let b = Array(N).fill(0);  // Iniciamos b con ceros
 
-      A[0][0] = 1; b[0] = 0;
-      A[N - 1][N - 1] = 1; b[N - 1] = 0;
 
-      for (let i = 1; i < N - 1; i++) {
-        A[i][i - 1] = 1;
-        A[i][i] = -2;
-        A[i][i + 1] = 1;
-      }
+            // Llenamos la matriz A con los coeficientes
+            for (let i = 1; i < N - 1; i++) {
+                A[i][i - 1] = 1;
+                A[i][i] = -2;
+                A[i][i + 1] = 1;
+                b[i] = Q * dx * dx;  // Ajuste correcto de b[i]
+            }
 
-      const T = resolverSistema(A, b);
-      resultados = [];
-      const tbody = document.querySelector("#resultado tbody");
-      tbody.innerHTML = "";
+            // Frontera T(0) = 0 y T(L) = 0
+            A[0][0] = 1;
+            A[N - 1][N - 1] = 1;
+            b[0] = 0;
+            b[N - 1] = 0;
 
-      for (let i = 0; i < N; i++) {
-        const x = (i * dx).toFixed(4);
-        const temp = T[i].toFixed(4);
-        resultados.push([x, temp]);
-        tbody.innerHTML += `<tr><td>${x}</td><td>${temp}</td></tr>`;
-      }
-    }
+            // Resolver el sistema de ecuaciones Ax = b
+            const T = resolverSistema(A, b);
 
-    function resolverSistema(A, b) {
-      const N = b.length;
-      let x = new Array(N).fill(0);
+            // Verificamos si se resolvió correctamente el sistema
+            if (!T || T.length !== N) {
+                alert("Hubo un error en el cálculo. Verifica los parámetros.");
+                return;
+            }
 
-      for (let i = 1; i < N; i++) {
-        const m = A[i][i - 1] / A[i - 1][i - 1];
-        for (let j = 0; j < N; j++) {
-          A[i][j] -= m * A[i - 1][j];
+            // Mostrar los resultados en la tabla
+            resultados = [];
+            const tbody = document.querySelector("#resultado tbody");
+            tbody.innerHTML = "";  // Limpiar la tabla antes de insertar los nuevos resultados
+
+            for (let i = 0; i < N; i++) {
+                const x = (i * dx).toFixed(4);  // Posición x redondeada a 4 decimales
+                const temp = T[i].toFixed(4);  // Temperatura T redondeada a 4 decimales
+                resultados.push([x, temp]);
+                tbody.innerHTML += `<tr><td>${x}</td><td>${temp}</td></tr>`;
+            }
         }
-        b[i] -= m * b[i - 1];
-      }
 
-      x[N - 1] = b[N - 1] / A[N - 1][N - 1];
-      for (let i = N - 2; i >= 0; i--) {
-        let sum = 0;
-        for (let j = i + 1; j < N; j++) {
-          sum += A[i][j] * x[j];
+        // Función que resuelve el sistema de ecuaciones Ax = b usando eliminación de Gauss
+        function resolverSistema(A, b) {
+            const N = b.length;
+            let x = new Array(N).fill(0);
+
+            // Eliminación hacia adelante
+            for (let i = 0; i < N - 1; i++) {
+                for (let j = i + 1; j < N; j++) {
+                    if (A[i][i] === 0) continue;  // Evitar división por cero
+                    let m = A[j][i] / A[i][i];
+                    for (let k = 0; k < N; k++) {
+                        A[j][k] -= A[i][k] * m;
+                    }
+                    b[j] -= b[i] * m;
+                }
+            }
+
+            // Sustitución hacia atrás
+            x[N - 1] = b[N - 1] / A[N - 1][N - 1];
+            for (let i = N - 2; i >= 0; i--) {
+                let sum = 0;
+                for (let j = i + 1; j < N; j++) {
+                    sum += A[i][j] * x[j];
+                }
+                x[i] = (b[i] - sum) / A[i][i];
+            }
+
+            return x;  // Devuelve la solución del sistema
         }
-        x[i] = (b[i] - sum) / A[i][i];
-      }
 
-      return x;
-    }
-
-    function exportarExcel() {
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet([["Posición (x)", "Temperatura (T)"], ...resultados]);
-      XLSX.utils.book_append_sheet(wb, ws, "Resultados");
-      XLSX.writeFile(wb, "resultados_temperatura.xlsx");
-    }
-  </script>
+        // Función para exportar los resultados a un archivo Excel
+        function exportarExcel() {
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([["Posición (x)", "Temperatura (T)"], ...resultados]);
+            XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+            XLSX.writeFile(wb, "resultados_temperatura.xlsx");
+        }
+    </script>
 </body>
+
 </html>
