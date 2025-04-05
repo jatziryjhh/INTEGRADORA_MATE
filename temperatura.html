@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Distribución de Temperatura</title>
+  <link rel="stylesheet" href="./assets/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header>
+    <img src="./assets/utez.png" alt="Logo UTEZ" class="logo izquierda" />
+    <h1>Distribución de Temperatura en una Barra</h1>
+    <img src="./assets/datid.png" alt="Logo DATID" class="logo derecha" />
+  </header>
+
+  <main>
+    <section class="formulario">
+      <label>Número de Puntos (N):</label>
+      <input type="number" id="numPuntos" value="10" />
+
+      <label>Fuente de Calor (Q):</label>
+      <input type="number" id="fuenteCalor" value="-10" />
+
+      <label>Longitud de la Barra (L):</label>
+      <input type="number" id="longitudBarra" value="1" step="0.1" />
+
+      <button onclick="calcular()">Calcular</button>
+      <button onclick="exportarExcel()">Exportar Excel</button>
+    </section>
+
+    <section class="tabla">
+      <h2>Resultados</h2>
+      <table id="resultado">
+        <thead>
+          <tr><th>Posición (x)</th><th>Temperatura (T)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    let resultados = [];
+
+    function calcular() {
+      const N = parseInt(document.getElementById("numPuntos").value);
+      const Q = parseFloat(document.getElementById("fuenteCalor").value);
+      const L = parseFloat(document.getElementById("longitudBarra").value);
+      const dx = L / (N - 1);
+
+      let A = Array.from({ length: N }, () => Array(N).fill(0));
+      let b = Array(N).fill(-Q * dx * dx);
+
+      A[0][0] = 1; b[0] = 0;
+      A[N - 1][N - 1] = 1; b[N - 1] = 0;
+
+      for (let i = 1; i < N - 1; i++) {
+        A[i][i - 1] = 1;
+        A[i][i] = -2;
+        A[i][i + 1] = 1;
+      }
+
+      const T = resolverSistema(A, b);
+      resultados = [];
+      const tbody = document.querySelector("#resultado tbody");
+      tbody.innerHTML = "";
+
+      for (let i = 0; i < N; i++) {
+        const x = (i * dx).toFixed(4);
+        const temp = T[i].toFixed(4);
+        resultados.push([x, temp]);
+        tbody.innerHTML += `<tr><td>${x}</td><td>${temp}</td></tr>`;
+      }
+    }
+
+    function resolverSistema(A, b) {
+      const N = b.length;
+      let x = new Array(N).fill(0);
+
+      for (let i = 1; i < N; i++) {
+        const m = A[i][i - 1] / A[i - 1][i - 1];
+        for (let j = 0; j < N; j++) {
+          A[i][j] -= m * A[i - 1][j];
+        }
+        b[i] -= m * b[i - 1];
+      }
+
+      x[N - 1] = b[N - 1] / A[N - 1][N - 1];
+      for (let i = N - 2; i >= 0; i--) {
+        let sum = 0;
+        for (let j = i + 1; j < N; j++) {
+          sum += A[i][j] * x[j];
+        }
+        x[i] = (b[i] - sum) / A[i][i];
+      }
+
+      return x;
+    }
+
+    function exportarExcel() {
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([["Posición (x)", "Temperatura (T)"], ...resultados]);
+      XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+      XLSX.writeFile(wb, "resultados_temperatura.xlsx");
+    }
+  </script>
+</body>
+</html>
