@@ -2,14 +2,19 @@
 <html lang="es">
 
 <head>
+    <!-- Codificación de caracteres -->
     <meta charset="UTF-8" />
+    <!-- Configuración para dispositivos móviles -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Distribución de Temperatura</title>
+    <!-- Estilos CSS externos -->
     <link rel="stylesheet" href="./assets/style.css" />
+    <!-- Librería para exportar a Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
 <body>
+    <!-- Encabezado con logos y título -->
     <header>
         <img src="./assets/utez.png" alt="Logo UTEZ" class="logo izquierda" />
         <h1>Distribución de Temperatura en una Barra</h1>
@@ -17,20 +22,26 @@
     </header>
 
     <main>
+        <!-- Sección del formulario de entrada -->
         <section class="formulario">
+            <!-- Entrada: número de puntos (discretización) -->
             <label>Número de Puntos (N):</label>
             <input type="number" id="numPuntos" value="10" />
 
+            <!-- Entrada: fuente de calor Q -->
             <label>Fuente de Calor (Q):</label>
             <input type="number" id="fuenteCalor" value="-10" />
 
+            <!-- Entrada: longitud total de la barra -->
             <label>Longitud de la Barra (L):</label>
             <input type="number" id="longitudBarra" value="1" step="0.1" />
 
+            <!-- Botones para calcular y exportar -->
             <button onclick="calcular()">Calcular</button>
             <button onclick="exportarExcel()">Exportar Excel</button>
         </section>
 
+        <!-- Sección donde se muestran los resultados -->
         <section class="tabla">
             <h2>Resultados</h2>
             <table id="resultado">
@@ -46,91 +57,93 @@
     </main>
 
     <script>
+        // Arreglo global donde se almacenan los resultados para exportar
         let resultados = [];
 
+        // Función principal de cálculo
         function calcular() {
+            // Obtener valores del formulario
             const N = parseInt(document.getElementById("numPuntos").value);  // Número de puntos
             const Q = parseFloat(document.getElementById("fuenteCalor").value);  // Fuente de calor
             const L = parseFloat(document.getElementById("longitudBarra").value);  // Longitud de la barra
-            const dx = L / (N - 1);  // Espaciado entre los puntos
+            const dx = L / (N - 1);  // Distancia entre cada punto (espaciado)
 
-            // Matriz A de coeficientes y vector b con los términos de la ecuación
-            let A = Array.from({ length: N }, () => Array(N).fill(0));  // Matriz A de tamaño N x N
-            let b = Array(N).fill(0);  // Iniciamos b con ceros
+            // Crear matriz A (coeficientes) y vector b (términos independientes)
+            let A = Array.from({ length: N }, () => Array(N).fill(0));  // Matriz cuadrada N x N llena de ceros
+            let b = Array(N).fill(0);  // Vector b lleno de ceros
 
-
-            // Llenamos la matriz A con los coeficientes
+            // Llenar la matriz A y el vector b con el método de diferencias finitas
             for (let i = 1; i < N - 1; i++) {
-                A[i][i - 1] = 1;
-                A[i][i] = -2;
-                A[i][i + 1] = 1;
-                b[i] = Q * dx * dx;  // Ajuste correcto de b[i]
+                A[i][i - 1] = 1;      // Coeficiente anterior
+                A[i][i] = -2;         // Coeficiente central
+                A[i][i + 1] = 1;      // Coeficiente siguiente
+                b[i] = Q * dx * dx;   // Fuente de calor ajustada
             }
 
-            // Frontera T(0) = 0 y T(L) = 0
+            // Aplicar condiciones de frontera: T(0) = 0 y T(L) = 0
             A[0][0] = 1;
             A[N - 1][N - 1] = 1;
             b[0] = 0;
             b[N - 1] = 0;
 
-            // Resolver el sistema de ecuaciones Ax = b
+            // Resolver el sistema lineal Ax = b
             const T = resolverSistema(A, b);
 
-            // Verificamos si se resolvió correctamente el sistema
+            // Verificar si se obtuvo una solución válida
             if (!T || T.length !== N) {
                 alert("Hubo un error en el cálculo. Verifica los parámetros.");
                 return;
             }
 
-            // Mostrar los resultados en la tabla
+            // Limpiar y mostrar resultados en la tabla
             resultados = [];
             const tbody = document.querySelector("#resultado tbody");
-            tbody.innerHTML = "";  // Limpiar la tabla antes de insertar los nuevos resultados
+            tbody.innerHTML = "";  // Limpiar tabla antes de insertar nuevos datos
 
             for (let i = 0; i < N; i++) {
-                const x = (i * dx).toFixed(4);  // Posición x redondeada a 4 decimales
-                const temp = T[i].toFixed(4);  // Temperatura T redondeada a 4 decimales
-                resultados.push([x, temp]);
-                tbody.innerHTML += `<tr><td>${x}</td><td>${temp}</td></tr>`;
+                const x = (i * dx).toFixed(4);   // Posición x con 4 decimales
+                const temp = T[i].toFixed(4);    // Temperatura T con 4 decimales
+                resultados.push([x, temp]);      // Guardar en array global
+                tbody.innerHTML += `<tr><td>${x}</td><td>${temp}</td></tr>`;  // Agregar a la tabla HTML
             }
         }
 
-        // Función que resuelve el sistema de ecuaciones Ax = b usando eliminación de Gauss
+        // Función para resolver el sistema Ax = b usando eliminación de Gauss
         function resolverSistema(A, b) {
             const N = b.length;
-            let x = new Array(N).fill(0);
+            let x = new Array(N).fill(0);  // Inicializar el vector solución
 
-            // Eliminación hacia adelante
+            // Eliminación hacia adelante (hacer ceros debajo de la diagonal)
             for (let i = 0; i < N - 1; i++) {
                 for (let j = i + 1; j < N; j++) {
-                    if (A[i][i] === 0) continue;  // Evitar división por cero
-                    let m = A[j][i] / A[i][i];
+                    if (A[i][i] === 0) continue;  // Prevenir división por cero
+                    let m = A[j][i] / A[i][i];    // Multiplicador
                     for (let k = 0; k < N; k++) {
-                        A[j][k] -= A[i][k] * m;
+                        A[j][k] -= A[i][k] * m;   // Resta fila i multiplicada
                     }
-                    b[j] -= b[i] * m;
+                    b[j] -= b[i] * m;  // Ajuste en el vector b
                 }
             }
 
-            // Sustitución hacia atrás
-            x[N - 1] = b[N - 1] / A[N - 1][N - 1];
+            // Sustitución hacia atrás para resolver el sistema triangular
+            x[N - 1] = b[N - 1] / A[N - 1][N - 1];  // Último valor
             for (let i = N - 2; i >= 0; i--) {
                 let sum = 0;
                 for (let j = i + 1; j < N; j++) {
-                    sum += A[i][j] * x[j];
+                    sum += A[i][j] * x[j];  // Suma de los valores ya resueltos
                 }
-                x[i] = (b[i] - sum) / A[i][i];
+                x[i] = (b[i] - sum) / A[i][i];  // Resolver x[i]
             }
 
-            return x;  // Devuelve la solución del sistema
+            return x;  // Devolver la solución del sistema
         }
 
-        // Función para exportar los resultados a un archivo Excel
+        // Función para exportar los datos a un archivo Excel
         function exportarExcel() {
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet([["Posición (x)", "Temperatura (T)"], ...resultados]);
-            XLSX.utils.book_append_sheet(wb, ws, "Resultados");
-            XLSX.writeFile(wb, "resultados_temperatura.xlsx");
+            const wb = XLSX.utils.book_new();  // Crear nuevo libro
+            const ws = XLSX.utils.aoa_to_sheet([["Posición (x)", "Temperatura (T)"], ...resultados]);  // Crear hoja
+            XLSX.utils.book_append_sheet(wb, ws, "Resultados");  // Agregar hoja al libro
+            XLSX.writeFile(wb, "resultados_temperatura.xlsx");  // Guardar archivo Excel
         }
     </script>
 </body>
