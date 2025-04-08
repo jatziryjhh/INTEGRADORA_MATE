@@ -2,21 +2,23 @@
 <html lang="es">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Distribución de Temperatura</title>
-    <link rel="stylesheet" href="./assets/style.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <meta charset="UTF-8" /> <!-- Define codificación de caracteres -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- Diseño responsivo -->
+    <title>Distribución de Temperatura</title> <!-- Título de la pestaña -->
+    <link rel="stylesheet" href="./assets/style.css" /> <!-- Enlace al archivo CSS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script> <!-- Librería para exportar a Excel -->
 </head>
 
 <body>
     <header>
+        <!-- Imágenes y título principal -->
         <img src="./assets/utez.png" alt="Logo UTEZ" class="logo izquierda" />
         <h1>Distribución de Temperatura en una Barra</h1>
         <img src="./assets/datid.png" alt="Logo DATID" class="logo derecha" />
     </header>
 
     <main>
+        <!-- Sección del formulario de entrada -->
         <section class="formulario">
             <label>Número de Puntos (N):</label>
             <input type="number" id="numPuntos" value="10" />
@@ -27,10 +29,11 @@
             <label>Longitud de la Barra (L):</label>
             <input type="number" id="longitudBarra" value="1" step="0.1" />
 
-            <button onclick="calcular()">Calcular</button>
-            <button onclick="exportarExcel()">Exportar Excel</button>
+            <button onclick="calcular()">Calcular</button> <!-- Botón para realizar el cálculo -->
+            <button onclick="exportarExcel()">Exportar Excel</button> <!-- Botón para exportar resultados -->
         </section>
 
+        <!-- Sección de la tabla de resultados -->
         <section class="tabla">
             <h2>Resultados</h2>
             <table id="resultado">
@@ -40,75 +43,76 @@
                         <th>Temperatura (T)</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody></tbody> <!-- Aquí se insertarán los resultados -->
             </table>
         </section>
     </main>
 
     <script>
-        let resultados = [];
+        let resultados = []; // Arreglo para almacenar los resultados
 
+        // Función principal para calcular la distribución de temperatura
         function calcular() {
-            const N = parseInt(document.getElementById("numPuntos").value);  // Número de puntos
-            const Q = parseFloat(document.getElementById("fuenteCalor").value);  // Fuente de calor
-            const L = parseFloat(document.getElementById("longitudBarra").value);  // Longitud de la barra
-            const dx = L / (N - 1);  // Espaciado entre los puntos
+            const N = parseInt(document.getElementById("numPuntos").value); // Número de puntos
+            const Q = parseFloat(document.getElementById("fuenteCalor").value); // Fuente de calor
+            const L = parseFloat(document.getElementById("longitudBarra").value); // Longitud total de la barra
+            const dx = L / (N - 1); // Distancia entre puntos
 
-            // Matriz A de coeficientes y vector b con los términos de la ecuación
-            let A = Array.from({ length: N }, () => Array(N).fill(0));  // Matriz A de tamaño N x N
-            let b = Array(N).fill(0);  // Iniciamos b con ceros
+            // Inicializar matriz A (NxN) y vector b
+            let A = Array.from({ length: N }, () => Array(N).fill(0)); // Matriz A de coeficientes
+            let b = Array(N).fill(0); // Vector b
 
-
-            // Llenamos la matriz A con los coeficientes
+            // Llenar la matriz y el vector para los puntos internos
             for (let i = 1; i < N - 1; i++) {
                 A[i][i - 1] = 1;
                 A[i][i] = -2;
                 A[i][i + 1] = 1;
-                b[i] = Q * dx * dx;  // Ajuste correcto de b[i]
+                b[i] = Q * dx * dx; // Ecuación de diferencias finitas
             }
 
-            // Frontera T(0) = 0 y T(L) = 0
+            // Condiciones de frontera: T(0) = 0 y T(L) = 0
             A[0][0] = 1;
             A[N - 1][N - 1] = 1;
             b[0] = 0;
             b[N - 1] = 0;
 
-            // Resolver el sistema de ecuaciones Ax = b
+            // Resolver el sistema lineal Ax = b
             const T = resolverSistema(A, b);
 
-            // Verificamos si se resolvió correctamente el sistema
+            // Validar resultado
             if (!T || T.length !== N) {
                 alert("Hubo un error en el cálculo. Verifica los parámetros.");
                 return;
             }
 
-            // Mostrar los resultados en la tabla
+            // Limpiar la tabla antes de mostrar resultados nuevos
             resultados = [];
             const tbody = document.querySelector("#resultado tbody");
-            tbody.innerHTML = "";  // Limpiar la tabla antes de insertar los nuevos resultados
+            tbody.innerHTML = "";
 
+            // Insertar los resultados en la tabla
             for (let i = 0; i < N; i++) {
-                const x = (i * dx).toFixed(4);  // Posición x redondeada a 4 decimales
-                const temp = T[i].toFixed(4);  // Temperatura T redondeada a 4 decimales
+                const x = (i * dx).toFixed(4); // Posición x
+                const temp = T[i].toFixed(4); // Temperatura correspondiente
                 resultados.push([x, temp]);
-                tbody.innerHTML += `<tr><td>${x}</td><td>${temp}</td></tr>`;
+                tbody.innerHTML += <tr><td>${x}</td><td>${temp}</td></tr>;
             }
         }
 
-        // Función que resuelve el sistema de ecuaciones Ax = b usando eliminación de Gauss
+        // Función para resolver el sistema lineal Ax = b mediante eliminación de Gauss
         function resolverSistema(A, b) {
             const N = b.length;
-            let x = new Array(N).fill(0);
+            let x = new Array(N).fill(0); // Vector solución
 
             // Eliminación hacia adelante
             for (let i = 0; i < N - 1; i++) {
                 for (let j = i + 1; j < N; j++) {
-                    if (A[i][i] === 0) continue;  // Evitar división por cero
+                    if (A[i][i] === 0) continue; // Evitar división por cero
                     let m = A[j][i] / A[i][i];
                     for (let k = 0; k < N; k++) {
-                        A[j][k] -= A[i][k] * m;
+                        A[j][k] -= A[i][k] * m; // Modificar fila j
                     }
-                    b[j] -= b[i] * m;
+                    b[j] -= b[i] * m; // Actualizar b
                 }
             }
 
@@ -122,15 +126,15 @@
                 x[i] = (b[i] - sum) / A[i][i];
             }
 
-            return x;  // Devuelve la solución del sistema
+            return x; // Devuelve el vector solución
         }
 
-        // Función para exportar los resultados a un archivo Excel
+        // Función para exportar resultados a un archivo Excel
         function exportarExcel() {
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet([["Posición (x)", "Temperatura (T)"], ...resultados]);
-            XLSX.utils.book_append_sheet(wb, ws, "Resultados");
-            XLSX.writeFile(wb, "resultados_temperatura.xlsx");
+            const wb = XLSX.utils.book_new(); // Crear nuevo libro de Excel
+            const ws = XLSX.utils.aoa_to_sheet([["Posición (x)", "Temperatura (T)"], ...resultados]); // Crear hoja con los datos
+            XLSX.utils.book_append_sheet(wb, ws, "Resultados"); // Agregar hoja al libro
+            XLSX.writeFile(wb, "resultados_temperatura.xlsx"); // Descargar archivo
         }
     </script>
 </body>
